@@ -21,6 +21,7 @@ void mouse_callback(GLFWwindow *window, double xpos, double ypos);
 void scroll_callback(GLFWwindow *window, double xoffset, double yoffset);
 void processInput(GLFWwindow *window);
 void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods);
+unsigned int loadTexture(char const * path);
 
 // settings
 const unsigned int SCR_WIDTH = 1300;
@@ -64,6 +65,10 @@ struct ProgramState {
     float portalScale = 0.04f;
     float portalRotation = 55.0f;
 
+    glm::vec3 portalWaterPosition = glm::vec3(17.2534f, -0.958174f, 6.71231f);
+    float portalWaterScale = 1.1f;
+    float portalWaterRotation = 45.0f;
+
     glm::vec3 keyPosition = glm::vec3(8.97785f, -0.11684f, 1.30846f);
     float keyScale = 0.05f;
     float keyRotation = 55.0f;
@@ -72,8 +77,7 @@ struct ProgramState {
     float chestScale = 0.08f;
     float chestRotate = 150.0f;
 
-    unsigned int diamondNumber = 10;
-    glm::vec3 diamondPosition = glm::vec3 (10.5021f, -0.873134f, 5.03972f);
+    const unsigned int diamondNumber = 10;
     vector<glm::vec3> diamondPositions = {
             glm::vec3 (10.5225f, -0.873134f, 5.12017f),
             glm::vec3 (10.1371f, -0.873134f, 5.24705f),
@@ -85,7 +89,6 @@ struct ProgramState {
             glm::vec3 (12.9761f, 0.18f, 2.97769f),
             glm::vec3 (13.8174f, -0.09f, -0.0203901f),
             glm::vec3 (14.0017f, -0.09f, 0.311945f)
-
     };
     float diamondScale = 0.002f;
 
@@ -230,6 +233,51 @@ int main() {
     pointLight.linear = 0.09f;
     pointLight.quadratic = 0.032f;
 
+    float portalVertices[] = {
+            //   x         y         z          normal                               texture coords
+            0.4f,  0.5f,  0.0f,   0.0f, 0.0f, 1.0f,         1.0f, 1.0f,
+            0.4f,  -0.5f, 0.0f,  0.0f, 0.0f, 1.0f,       1.0f, 0.0f,
+            -0.4f,-0.5f,0.0f,   0.0f, 0.0f, 1.0f,       0.0f, 0.0f,
+            -0.4f,0.5f, 0.0f,   0.0f, 0.0f, 1.0f,       0.0f, 1.0f
+    };
+
+    unsigned int portalIndices[] = {
+            0, 3, 1,
+            1, 3, 2
+    };
+
+    unsigned int portalVBO, portalVAO, portalEBO;
+    glGenVertexArrays(1, &portalVAO);
+    glGenBuffers(1, &portalVBO);
+    glGenBuffers(1, &portalEBO);
+
+    glBindVertexArray(portalVAO);
+
+    glBindBuffer(GL_ARRAY_BUFFER, portalVBO);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(portalVertices), portalVertices, GL_STATIC_DRAW);
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, portalEBO);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(portalIndices), portalIndices, GL_STATIC_DRAW);
+
+    //coordinates:
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
+    //normal coords
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)(3*sizeof(float)));
+    glEnableVertexAttribArray(1);
+    //texture coords
+    glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)(6*sizeof(float)));
+    glEnableVertexAttribArray(2);
+
+    glBindVertexArray(0);
+
+    unsigned int diffuseMap = loadTexture("resources/textures/water.jpg");
+    unsigned int specularMap = loadTexture("resources/textures/white.jpg");
+    ourShader.use();
+    ourShader.setInt("material.texture_diffuse1", 0);
+    ourShader.setInt("material.texture_specular1", 1);
+    ourShader.setFloat("material.shininess", 0);
+
 
 
     // draw in wireframe
@@ -321,7 +369,7 @@ int main() {
         chestModel.Draw(ourShader);
 
         //Diamond:
-        ourShader.setBool("transparency", true);
+        ourShader.setBool("diamondTransparency", true);
         for(unsigned int i=0; i<programState->diamondNumber; ++i) {
             model = glm::mat4(1.0f);
             model = glm::translate(model, programState->diamondPositions[i]);
@@ -330,7 +378,34 @@ int main() {
             ourShader.setMat4("model", model);
             diamondModel.Draw(ourShader);
         }
-        ourShader.setBool("transparency", false);
+        ourShader.setBool("diamondTransparency", false);
+
+
+        //PORTAL WATER:
+        glEnable(GL_CULL_FACE);
+        glFrontFace(GL_CW);
+        glCullFace(GL_BACK);
+
+        ourShader.setBool("portalTransparency", true);
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, programState->portalWaterPosition);
+        model = glm::scale(model, glm::vec3 (programState->portalWaterScale));
+        model = glm::rotate(model, glm::radians(programState->portalWaterRotation), glm::vec3 (0.0f, 1.0f, 0.0f));
+        ourShader.setMat4("model", model);
+        
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, diffuseMap);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, specularMap);
+        glBindVertexArray(portalVAO);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+        ourShader.setBool("portalTransparency", false);
+        glBindVertexArray(0);
+        glDisable(GL_CULL_FACE);
+
+
 
 
         if (programState->ImGuiEnabled)
@@ -449,4 +524,41 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
             glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
         }
     }
+}
+
+unsigned int loadTexture(char const * path)
+{
+    unsigned int textureID;
+    glGenTextures(1, &textureID);
+
+    int width, height, nrComponents;
+    unsigned char *data = stbi_load(path, &width, &height, &nrComponents, 0);
+    if (data)
+    {
+        GLenum format;
+        if (nrComponents == 1)
+            format = GL_RED;
+        else if (nrComponents == 3)
+            format = GL_RGB;
+        else if (nrComponents == 4)
+            format = GL_RGBA;
+
+        glBindTexture(GL_TEXTURE_2D, textureID);
+        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+        stbi_image_free(data);
+    }
+    else
+    {
+        std::cout << "Texture failed to load at path: " << path << std::endl;
+        stbi_image_free(data);
+    }
+
+    return textureID;
 }
