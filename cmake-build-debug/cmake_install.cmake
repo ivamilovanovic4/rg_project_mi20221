@@ -1,4 +1,4 @@
-# Install script for directory: /home/iva/Desktop/rg/rg_project_mi20221
+# Install script for directory: /home/iva/Desktop/foo/rg_project_mi20221
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -44,8 +44,8 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for each subdirectory.
-  include("/home/iva/Desktop/rg/rg_project_mi20221/cmake-build-debug/libs/glad/cmake_install.cmake")
-  include("/home/iva/Desktop/rg/rg_project_mi20221/cmake-build-debug/libs/imgui/cmake_install.cmake")
+  include("/home/iva/Desktop/foo/rg_project_mi20221/cmake-build-debug/libs/glad/cmake_install.cmake")
+  include("/home/iva/Desktop/foo/rg_project_mi20221/cmake-build-debug/libs/imgui/cmake_install.cmake")
 
 endif()
 
@@ -57,5 +57,5 @@ endif()
 
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
-file(WRITE "/home/iva/Desktop/rg/rg_project_mi20221/cmake-build-debug/${CMAKE_INSTALL_MANIFEST}"
+file(WRITE "/home/iva/Desktop/foo/rg_project_mi20221/cmake-build-debug/${CMAKE_INSTALL_MANIFEST}"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")

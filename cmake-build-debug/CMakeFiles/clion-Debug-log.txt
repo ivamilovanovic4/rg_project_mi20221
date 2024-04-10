@@ -1,4 +1,4 @@
-/home/iva/CLion-2023.3.4/clion-2023.3.4/bin/cmake/linux/x64/bin/cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_MAKE_PROGRAM=/home/iva/CLion-2023.3.4/clion-2023.3.4/bin/ninja/linux/x64/ninja -G Ninja -S /home/iva/Desktop/rg/rg_project_mi20221 -B /home/iva/Desktop/rg/rg_project_mi20221/cmake-build-debug
+/home/iva/CLion-2023.3.4/clion-2023.3.4/bin/cmake/linux/x64/bin/cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_MAKE_PROGRAM=/home/iva/CLion-2023.3.4/clion-2023.3.4/bin/ninja/linux/x64/ninja -G Ninja -S /home/iva/Desktop/foo/rg_project_mi20221 -B /home/iva/Desktop/foo/rg_project_mi20221/cmake-build-debug
 -- The C compiler identification is GNU 9.4.0
 -- The CXX compiler identification is GNU 9.4.0
 -- Detecting C compiler ABI info
@@ -14,6 +14,6 @@
 -- Found OpenGL: /usr/lib/x86_64-linux-gnu/libOpenGL.so   
 -- Found GLFW3: /usr/lib/x86_64-linux-gnu/libglfw.so  
 -- Found ASSIMP: /usr/lib/x86_64-linux-gnu/libassimp.so
--- Configuring done (1.5s)
--- Generating done (0.0s)
--- Build files have been written to: /home/iva/Desktop/rg/rg_project_mi20221/cmake-build-debug
+-- Configuring done (10.6s)
+-- Generating done (0.1s)
+-- Build files have been written to: /home/iva/Desktop/foo/rg_project_mi20221/cmake-build-debug

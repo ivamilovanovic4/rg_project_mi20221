@@ -1,4 +1,4 @@
-# Install script for directory: /home/iva/Desktop/rg/rg_project_mi20221/libs/imgui
+# Install script for directory: /home/iva/Desktop/foo/rg_project_mi20221/libs/imgui
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
