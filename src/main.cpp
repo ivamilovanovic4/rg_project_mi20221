@@ -72,6 +72,23 @@ struct ProgramState {
     float chestScale = 0.08f;
     float chestRotate = 150.0f;
 
+    unsigned int diamondNumber = 10;
+    glm::vec3 diamondPosition = glm::vec3 (10.5021f, -0.873134f, 5.03972f);
+    vector<glm::vec3> diamondPositions = {
+            glm::vec3 (10.5225f, -0.873134f, 5.12017f),
+            glm::vec3 (10.1371f, -0.873134f, 5.24705f),
+            glm::vec3 (9.76582f, -0.873134f, 5.18574f),
+            glm::vec3 (8.45477f, -0.37f, 1.93658f),
+            glm::vec3 (8.51452f, -0.37f, 2.37812f),
+            glm::vec3 (12.587f, 0.18f, 3.19113f),
+            glm::vec3 (12.1414f, 0.18f, 3.12796f),
+            glm::vec3 (12.9761f, 0.18f, 2.97769f),
+            glm::vec3 (13.8174f, -0.09f, -0.0203901f),
+            glm::vec3 (14.0017f, -0.09f, 0.311945f)
+
+    };
+    float diamondScale = 0.002f;
+
 
     PointLight pointLight;
     ProgramState()
@@ -175,6 +192,8 @@ int main() {
     // configure global opengl state
     // -----------------------------
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     // build and compile shaders
     // -------------------------
@@ -196,6 +215,10 @@ int main() {
 
     Model chestModel("resources/objects/chest/chest.obj");
     chestModel.SetShaderTextureNamePrefix("material.");
+
+    Model diamondModel("resources/objects/diamond/diamond.obj");
+    diamondModel.SetShaderTextureNamePrefix("material.h");
+    ourShader.setBool("transparency", false);
 
     PointLight& pointLight = programState->pointLight;
     pointLight.position = glm::vec3(4.0f, 4.0, 0.0);
@@ -223,6 +246,13 @@ int main() {
 
         glClearColor(programState->clearColor.r, programState->clearColor.g, programState->clearColor.b, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        std::sort(programState->diamondPositions.begin(), programState->diamondPositions.end(),
+                  [cameraPosition = programState->camera.Position](const glm::vec3& a, const glm::vec3& b) {
+                      float d1 = glm::distance(a, cameraPosition);
+                      float d2 = glm::distance(b, cameraPosition);
+                      return d1 > d2;
+                  });
 
         ourShader.use();
 
@@ -289,6 +319,18 @@ int main() {
         model = glm::rotate(model, glm::radians(programState->chestRotate), glm::vec3(0.0f, 1.0f, 0.0f));
         ourShader.setMat4("model", model);
         chestModel.Draw(ourShader);
+
+        //Diamond:
+        ourShader.setBool("transparency", true);
+        for(unsigned int i=0; i<programState->diamondNumber; ++i) {
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, programState->diamondPositions[i]);
+            model = glm::scale(model, glm::vec3(programState->diamondScale));
+            model = glm::rotate(model, 2.0f * (float) glfwGetTime(), glm::vec3(0.0f, 1.0f, 0.0f));
+            ourShader.setMat4("model", model);
+            diamondModel.Draw(ourShader);
+        }
+        ourShader.setBool("transparency", false);
 
 
         if (programState->ImGuiEnabled)
