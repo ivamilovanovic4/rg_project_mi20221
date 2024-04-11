@@ -16,27 +16,23 @@
 
 #include <iostream>
 
-void framebuffer_size_callback(GLFWwindow *window, int width, int height);
-void mouse_callback(GLFWwindow *window, double xpos, double ypos);
-void scroll_callback(GLFWwindow *window, double xoffset, double yoffset);
-void processInput(GLFWwindow *window);
-void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods);
-unsigned int loadTexture(char const * path);
-unsigned int loadCubemap(vector<std::string> faces);
-
-// settings
 const unsigned int SCR_WIDTH = 1300;
 const unsigned int SCR_HEIGHT = 900;
-
-// camera
 
 float lastX = SCR_WIDTH / 2.0f;
 float lastY = SCR_HEIGHT / 2.0f;
 bool firstMouse = true;
 
-// timing
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
+
+struct DirLight {
+    glm::vec3 direction;
+
+    glm::vec3 ambient;
+    glm::vec3 diffuse;
+    glm::vec3 specular;
+};
 
 struct PointLight {
     glm::vec3 position;
@@ -49,52 +45,51 @@ struct PointLight {
     float quadratic;
 };
 
+struct SpotLight {
+    glm::vec3 position;
+    glm::vec3 direction;
+    float cutOff;
+    float outerCutOff;
+
+    float constant;
+    float linear;
+    float quadratic;
+
+    glm::vec3 ambient;
+    glm::vec3 diffuse;
+    glm::vec3 specular;
+};
+
+struct Object {
+    glm::vec3 position;
+    float scale;
+    float rotationX = 0;
+    float rotationY = 0;
+    float rotationZ = 0;
+};
+
 struct ProgramState {
     glm::vec3 clearColor = glm::vec3(0);
     bool ImGuiEnabled = false;
     Camera camera;
     bool CameraMouseMovementUpdateEnabled = true;
 
-    glm::vec3 islandPosition = glm::vec3(12.0f, 0.0f, 1.0f);
-    float islandScale = 0.2f;
+    Object island;
+    Object spyro;
+    Object portal;
+    Object portalWater;
+    Object key;
+    Object chest;
+    Object diamond;
 
-    glm::vec3 spyroPosition = glm::vec3(15.498f, -1.85f, 5.23524f);
-    float spyroScale = 1.0f;
-    float spyroRotation = -85.0f;
-
-    glm::vec3 portalPosition = glm::vec3 (17.13f, -1.94783f, 6.77324f);
-    float portalScale = 0.04f;
-    float portalRotation = 55.0f;
-
-    glm::vec3 portalWaterPosition = glm::vec3(17.2534f, -0.958174f, 6.71231f);
-    float portalWaterScale = 1.1f;
-    float portalWaterRotation = 45.0f;
-
-    glm::vec3 keyPosition = glm::vec3(8.97785f, -0.11684f, 1.30846f);
-    float keyScale = 0.05f;
-    float keyRotation = 55.0f;
-
-    glm::vec3 chestPosition = glm::vec3 (10.9758f, 0.222281f, -0.0916667f);
-    float chestScale = 0.08f;
-    float chestRotate = 150.0f;
-
-    const unsigned int diamondNumber = 10;
-    vector<glm::vec3> diamondPositions = {
-            glm::vec3 (10.5225f, -0.873134f, 5.12017f),
-            glm::vec3 (10.1371f, -0.873134f, 5.24705f),
-            glm::vec3 (9.76582f, -0.873134f, 5.18574f),
-            glm::vec3 (8.45477f, -0.37f, 1.93658f),
-            glm::vec3 (8.51452f, -0.37f, 2.37812f),
-            glm::vec3 (12.587f, 0.18f, 3.19113f),
-            glm::vec3 (12.1414f, 0.18f, 3.12796f),
-            glm::vec3 (12.9761f, 0.18f, 2.97769f),
-            glm::vec3 (13.8174f, -0.09f, -0.0203901f),
-            glm::vec3 (14.0017f, -0.09f, 0.311945f)
-    };
-    float diamondScale = 0.002f;
-
-
+    DirLight dirLight;
     PointLight pointLight;
+    SpotLight spotLight;
+
+    glm::vec3 sAmbient = glm::vec3(0.0f, 0.0f, 0.0f);
+    glm::vec3 sDiffuse = glm::vec3(1.0f, 1.0f, 1.0f);
+    glm::vec3 sSpecular = glm::vec3( 1.0f, 1.0f, 1.0f);
+
     ProgramState()
             : camera(glm::vec3(14.4107f, 0.438836f, 19.0486f)) {}
 
@@ -133,13 +128,22 @@ void ProgramState::LoadFromFile(std::string filename) {
     }
 }
 
+void framebuffer_size_callback(GLFWwindow *window, int width, int height);
+void mouse_callback(GLFWwindow *window, double xpos, double ypos);
+void scroll_callback(GLFWwindow *window, double xoffset, double yoffset);
+void processInput(GLFWwindow *window);
+void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods);
+
+void processLamp(GLFWwindow *window, SpotLight& spotLight);
+void renderModel(glm::mat4& model, Object& object);
+unsigned int loadTexture(char const * path);
+unsigned int loadCubemap(vector<std::string> faces);
+
 ProgramState *programState;
 
 void DrawImGui(ProgramState *programState);
 
 int main() {
-    // glfw: initialize and configure
-    // ------------------------------
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -149,8 +153,6 @@ int main() {
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
 
-    // glfw window creation
-    // --------------------
     GLFWwindow *window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", NULL, NULL);
     if (window == NULL) {
         std::cout << "Failed to create GLFW window" << std::endl;
@@ -162,79 +164,96 @@ int main() {
     glfwSetCursorPosCallback(window, mouse_callback);
     glfwSetScrollCallback(window, scroll_callback);
     glfwSetKeyCallback(window, key_callback);
-    // tell GLFW to capture our mouse
+
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
-    // glad: load all OpenGL function pointers
-    // ---------------------------------------
     if (!gladLoadGLLoader((GLADloadproc) glfwGetProcAddress)) {
         std::cout << "Failed to initialize GLAD" << std::endl;
         return -1;
     }
-
-    // tell stb_image.h to flip loaded texture's on the y-axis (before loading model).
-    //stbi_set_flip_vertically_on_load(true);
 
     programState = new ProgramState;
     programState->LoadFromFile("resources/program_state.txt");
     if (programState->ImGuiEnabled) {
         glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
     }
-    // Init Imgui
+
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO &io = ImGui::GetIO();
     (void) io;
 
-
-
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 330 core");
 
-    //stbi_set_flip_vertically_on_load(true);
-
-    // configure global opengl state
-    // -----------------------------
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    // build and compile shaders
-    // -------------------------
-    Shader ourShader("resources/shaders/2.model_lighting.vs", "resources/shaders/2.model_lighting.fs");
+    //SHADERS::
+    Shader ourShader("resources/shaders/light.vs", "resources/shaders/light.fs");
     Shader cubemapShader("resources/shaders/cubemap.vs", "resources/shaders/cubemap.fs");
 
-    // load models
-    // -----------
+    //MODELS:
+    //ISLAND:
     Model islandModel("resources/objects/island/island.obj");
     islandModel.SetShaderTextureNamePrefix("material.");
+    Object& islandObj = programState->island;
+    islandObj.position = glm::vec3(12.0f, 0.0f, 1.0f);
+    islandObj.scale = 0.2f;
 
+    //SPYRO
     Model spyroModel("resources/objects/spyro/spyro.obj");
     spyroModel.SetShaderTextureNamePrefix("material.");
+    Object& spyroObj = programState->spyro;
+    spyroObj.position = glm::vec3(15.498f, -1.85f, 5.23524f);
+    spyroObj.scale = 1.0f;
+    spyroObj.rotationY = -85.0f;
 
+    //PORTAL:
     Model portalModel("resources/objects/portal/portal.obj");
     portalModel.SetShaderTextureNamePrefix("material.");
+    Object& portalObj = programState->portal;
+    portalObj.position = glm::vec3 (17.13f, -1.94783f, 6.77324f);
+    portalObj.scale = 0.04f;
+    portalObj.rotationY = 55.0f;
 
+    //KEY:
     Model keyModel("resources/objects/old_key/old_key.obj");
     keyModel.SetShaderTextureNamePrefix("material.");
+    Object& keyObj = programState->key;
+    keyObj.position = glm::vec3(8.97785f, -0.11684f, 1.30846f);
+    keyObj.scale = 0.05f;
+    keyObj.rotationX = 55.0;
 
+    //CHEST:
     Model chestModel("resources/objects/chest/chest.obj");
     chestModel.SetShaderTextureNamePrefix("material.");
+    Object& chestObj = programState->chest;
+    chestObj.position = glm::vec3 (10.9758f, 0.222281f, -0.0916667f);
+    chestObj.scale = 0.08f;
+    chestObj.rotationY = 150.0f;
 
+    //DIAMONDS:
     Model diamondModel("resources/objects/diamond/diamond.obj");
     diamondModel.SetShaderTextureNamePrefix("material.h");
-    ourShader.setBool("transparency", false);
+    Object& diamondObj = programState->diamond;
+    diamondObj.scale = 0.002f;
+    const unsigned int diamondNumber = 10;
+    vector<glm::vec3> diamondPositions = {
+            glm::vec3 (10.5225f, -0.873134f, 5.12017f),
+            glm::vec3 (10.1371f, -0.873134f, 5.24705f),
+            glm::vec3 (9.76582f, -0.873134f, 5.18574f),
+            glm::vec3 (8.45477f, -0.37f, 1.93658f),
+            glm::vec3 (8.51452f, -0.37f, 2.37812f),
+            glm::vec3 (12.587f, 0.18f, 3.19113f),
+            glm::vec3 (12.1414f, 0.18f, 3.12796f),
+            glm::vec3 (12.9761f, 0.18f, 2.97769f),
+            glm::vec3 (13.8174f, -0.09f, -0.0203901f),
+            glm::vec3 (14.0017f, -0.09f, 0.311945f)
+    };
 
-    PointLight& pointLight = programState->pointLight;
-    pointLight.position = glm::vec3(4.0f, 4.0, 0.0);
-    pointLight.ambient = glm::vec3(0.1, 0.1, 0.1);
-    pointLight.diffuse = glm::vec3(0.8, 0.8, 0.8);
-    pointLight.specular = glm::vec3(1.0, 1.0, 1.0);
-
-    pointLight.constant = 1.0f;
-    pointLight.linear = 0.09f;
-    pointLight.quadratic = 0.032f;
-
+    //PORTAL WATER:
     float portalVertices[] = {
             //   x         y         z          normal                               texture coords
             0.4f,  0.5f,  0.0f,   0.0f, 0.0f, 1.0f,         1.0f, 1.0f,
@@ -242,66 +261,10 @@ int main() {
             -0.4f,-0.5f,0.0f,   0.0f, 0.0f, 1.0f,       0.0f, 0.0f,
             -0.4f,0.5f, 0.0f,   0.0f, 0.0f, 1.0f,       0.0f, 1.0f
     };
-
     unsigned int portalIndices[] = {
             0, 3, 1,
             1, 3, 2
     };
-
-    float cubemapVertices[] = {
-            -1.0f,  1.0f, -1.0f,
-            -1.0f, -1.0f, -1.0f,
-            1.0f, -1.0f, -1.0f,
-            1.0f, -1.0f, -1.0f,
-            1.0f,  1.0f, -1.0f,
-            -1.0f,  1.0f, -1.0f,
-
-            -1.0f, -1.0f,  1.0f,
-            -1.0f, -1.0f, -1.0f,
-            -1.0f,  1.0f, -1.0f,
-            -1.0f,  1.0f, -1.0f,
-            -1.0f,  1.0f,  1.0f,
-            -1.0f, -1.0f,  1.0f,
-
-            1.0f, -1.0f, -1.0f,
-            1.0f, -1.0f,  1.0f,
-            1.0f,  1.0f,  1.0f,
-            1.0f,  1.0f,  1.0f,
-            1.0f,  1.0f, -1.0f,
-            1.0f, -1.0f, -1.0f,
-
-            -1.0f, -1.0f,  1.0f,
-            -1.0f,  1.0f,  1.0f,
-            1.0f,  1.0f,  1.0f,
-            1.0f,  1.0f,  1.0f,
-            1.0f, -1.0f,  1.0f,
-            -1.0f, -1.0f,  1.0f,
-
-            -1.0f,  1.0f, -1.0f,
-            1.0f,  1.0f, -1.0f,
-            1.0f,  1.0f,  1.0f,
-            1.0f,  1.0f,  1.0f,
-            -1.0f,  1.0f,  1.0f,
-            -1.0f,  1.0f, -1.0f,
-
-            -1.0f, -1.0f, -1.0f,
-            -1.0f, -1.0f,  1.0f,
-            1.0f, -1.0f, -1.0f,
-            1.0f, -1.0f, -1.0f,
-            -1.0f, -1.0f,  1.0f,
-            1.0f, -1.0f,  1.0f
-    };
-
-    vector<std::string> faces {
-            "resources/textures/cubemap/cloudtop_right.jpg",
-            "resources/textures/cubemap/cloudtop_left.jpg",
-            "resources/textures/cubemap/cloudtop_top.jpg",
-            "resources/textures/cubemap/cloudtop_bottom.jpg",
-            "resources/textures/cubemap/cloudtop_front.jpg",
-            "resources/textures/cubemap/cloudtop_back.jpg"
-    };
-
-    //PORTALWATER:
     unsigned int portalVBO, portalVAO, portalEBO;
     glGenVertexArrays(1, &portalVAO);
     glGenBuffers(1, &portalVBO);
@@ -315,26 +278,78 @@ int main() {
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, portalEBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(portalIndices), &portalIndices, GL_STATIC_DRAW);
 
-    //coordinates:
+    //position coords:
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
-    //normal coords
+    //normal coords:
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)(3*sizeof(float)));
     glEnableVertexAttribArray(1);
-    //texture coords
+    //texture coords:
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8*sizeof(float), (void*)(6*sizeof(float)));
     glEnableVertexAttribArray(2);
 
     glBindVertexArray(0);
 
-    unsigned int diffuseMap = loadTexture("resources/textures/water.jpg");
-    unsigned int specularMap = loadTexture("resources/textures/white.jpg");
-    ourShader.use();
-    ourShader.setInt("material.texture_diffuse1", 0);
-    ourShader.setInt("material.texture_specular1", 1);
-    ourShader.setFloat("material.shininess", 32);
+    unsigned int diffuseMap = loadTexture("resources/textures/portal_textures/water.jpg");
+    unsigned int specularMap = loadTexture("resources/textures/portal_textures/specular_map.jpg");
+
+    Object& portalWaterObj = programState->portalWater;
+    portalWaterObj.position = glm::vec3(17.2534f, -0.958174f, 6.71231f);
+    portalWaterObj.scale = 1.1f;
+    portalWaterObj.rotationY = 45.0f;
 
     //CUBEMAP:
+    float cubemapVertices[] = {
+            -1.0f,  1.0f,   -1.0f,
+            -1.0f,  -1.0f,  -1.0f,
+            1.0f,   -1.0f,  -1.0f,
+            1.0f,   -1.0f, -1.0f,
+            1.0f,  1.0f,  -1.0f,
+            -1.0f, 1.0f,  -1.0f,
+
+            -1.0f, -1.0f, 1.0f,
+            -1.0f, -1.0f, -1.0f,
+            -1.0f, 1.0f,  -1.0f,
+            -1.0f, 1.0f,  -1.0f,
+            -1.0f, 1.0f,  1.0f,
+            -1.0f, -1.0f, 1.0f,
+
+            1.0f,  -1.0f, -1.0f,
+            1.0f,  -1.0f, 1.0f,
+            1.0f,  1.0f,  1.0f,
+            1.0f,  1.0f,  1.0f,
+            1.0f,  1.0f,  -1.0f,
+            1.0f,  -1.0f, -1.0f,
+
+            -1.0f, -1.0f, 1.0f,
+            -1.0f, 1.0f,  1.0f,
+            1.0f,  1.0f,  1.0f,
+            1.0f,  1.0f,  1.0f,
+            1.0f,  -1.0f, 1.0f,
+            -1.0f, -1.0f, 1.0f,
+
+            -1.0f, 1.0f,  -1.0f,
+            1.0f,  1.0f,  -1.0f,
+            1.0f,  1.0f,  1.0f,
+            1.0f,  1.0f,  1.0f,
+            -1.0f, 1.0f,  1.0f,
+            -1.0f, 1.0f,  -1.0f,
+
+            -1.0f, -1.0f, -1.0f,
+            -1.0f, -1.0f, 1.0f,
+            1.0f,  -1.0f, -1.0f,
+            1.0f,  -1.0f,-1.0f,
+            -1.0f,-1.0f,1.0f,
+            1.0f, -1.0f,1.0f
+    };
+    vector<std::string> faces {
+            "resources/textures/cubemap/cloudtop_right.jpg",
+            "resources/textures/cubemap/cloudtop_left.jpg",
+            "resources/textures/cubemap/cloudtop_top.jpg",
+            "resources/textures/cubemap/cloudtop_bottom.jpg",
+            "resources/textures/cubemap/cloudtop_front.jpg",
+            "resources/textures/cubemap/cloudtop_back.jpg"
+    };
     unsigned int cubemapVAO, cubemapVBO;
     glGenVertexArrays(1, &cubemapVAO);
     glGenBuffers(1, &cubemapVBO);
@@ -343,31 +358,54 @@ int main() {
     glBindBuffer(GL_ARRAY_BUFFER, cubemapVBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(cubemapVertices), &cubemapVertices, GL_STATIC_DRAW);
 
-    //position coordinates:
+    //position coords:
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3*sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
     unsigned int cubemapTexture = loadCubemap(faces);
-
     cubemapShader.use();
     cubemapShader.setInt("cubemap", 0);
 
-    // draw in wireframe
-    //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    //LIGHTS:
+    DirLight& dirLight = programState->dirLight;
+    dirLight.direction = glm::vec3 (-0.00439722f, -0.544639f, -0.838659f);
+    dirLight.ambient = glm::vec3(0.2f, 0.2f, 0.2f);
+    dirLight.diffuse = glm::vec3(0.7f, 0.7f, 0.7f);
+    dirLight.specular = glm::vec3(0.5f, 0.5f, 0.5f);
 
-    // render loop
-    // -----------
+    PointLight& pointLight = programState->pointLight;
+    pointLight.position = glm::vec3 (10.9758f, 0.322281f, -0.0916667f);
+    pointLight.ambient = glm::vec3(0.2, 0.2, 0.2);
+    pointLight.diffuse = glm::vec3(0.8, 0.8, 0.8);
+    pointLight.specular = glm::vec3(1.0, 1.0, 1.0);
+
+    pointLight.constant = 1.0f;
+    pointLight.linear = 0.7f;
+    pointLight.quadratic = 1.8f;
+
+    SpotLight& spotLight = programState->spotLight;
+    spotLight.ambient = programState->sAmbient;
+    spotLight.diffuse = programState->sDiffuse;
+    spotLight.specular = programState->sSpecular;
+
+    spotLight.constant = 1.0f;
+    spotLight.linear = 0.09f;
+    spotLight.quadratic = 0.032f;
+
+    spotLight.cutOff = 12.5f;
+    spotLight.outerCutOff = 15.0f;
+
     while (!glfwWindowShouldClose(window)) {
         float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
         processInput(window);
-
+        processLamp(window, spotLight);
         glClearColor(programState->clearColor.r, programState->clearColor.g, programState->clearColor.b, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        std::sort(programState->diamondPositions.begin(), programState->diamondPositions.end(),
+        std::sort(diamondPositions.begin(), diamondPositions.end(),
                   [cameraPosition = programState->camera.Position](const glm::vec3& a, const glm::vec3& b) {
                       float d1 = glm::distance(a, cameraPosition);
                       float d2 = glm::distance(b, cameraPosition);
@@ -376,107 +414,96 @@ int main() {
 
         ourShader.use();
 
-        ourShader.setVec3("viewPosition", pointLight.position);
+        ourShader.setVec3("viewPosition", programState->camera.Position);
         ourShader.setFloat("material.shininess", 32.0f);
+        ourShader.setInt("transparency", 0);
 
-        ourShader.setVec3("dirLight.direction", -0.2f, -1.0f, -0.3f);
-        ourShader.setVec3("dirLight.ambient", 0.5f, 0.5f, 0.5f);
-        ourShader.setVec3("dirLight.diffuse", 0.4f, 0.4f, 0.4f);
-        ourShader.setVec3("dirLight.specular", 0.5f, 0.5f, 0.5f);
+        //SET LIGHTS:
+        //DIRECTIONAL LIGHT:
+        ourShader.setVec3("dirLight.direction", dirLight.direction);
+        ourShader.setVec3("dirLight.ambient", dirLight.ambient);
+        ourShader.setVec3("dirLight.diffuse", dirLight.diffuse);
+        ourShader.setVec3("dirLight.specular", dirLight.specular);
 
-        pointLight.position = glm::vec3(4.0 * cos(currentFrame), 4.0f, 4.0 * sin(currentFrame));
-        ourShader.setVec3("pointLight.position", programState->camera.Position);
+        //POINTLIGHT:
+        ourShader.setVec3("pointLight.position", pointLight.position);
         ourShader.setVec3("pointLight.ambient", pointLight.ambient);
         ourShader.setVec3("pointLight.diffuse", pointLight.diffuse);
         ourShader.setVec3("pointLight.specular", pointLight.specular);
+
         ourShader.setFloat("pointLight.constant", pointLight.constant);
         ourShader.setFloat("pointLight.linear", pointLight.linear);
         ourShader.setFloat("pointLight.quadratic", pointLight.quadratic);
 
+        //SPOTLIGHT:
         ourShader.setVec3("spotLight.position", programState->camera.Position);
         ourShader.setVec3("spotLight.direction", programState->camera.Front);
-        ourShader.setVec3("spotLight.ambient", 0.0f, 0.0f, 0.0f);
-        ourShader.setVec3("spotLight.diffuse", 1.0f, 1.0f, 1.0f);
-        ourShader.setVec3("spotLight.specular", 1.0f, 1.0f, 1.0f);
-        ourShader.setFloat("spotLight.constant", 1.0f);
-        ourShader.setFloat("spotLight.linear", 0.09);
-        ourShader.setFloat("spotLight.quadratic", 0.032);
-        ourShader.setFloat("spotLight.cutOff", glm::cos(glm::radians(12.5f)));
-        ourShader.setFloat("spotLight.outerCutOff", glm::cos(glm::radians(15.0f)));
 
-        // view/projection transformations
-        glm::mat4 projection = glm::perspective(glm::radians(programState->camera.Zoom),
-                                                (float) SCR_WIDTH / (float) SCR_HEIGHT, 0.1f, 100.0f);
+        ourShader.setVec3("spotLight.ambient", spotLight.ambient);
+        ourShader.setVec3("spotLight.diffuse", spotLight.diffuse);
+        ourShader.setVec3("spotLight.specular", spotLight.specular);
+
+        ourShader.setFloat("spotLight.constant", spotLight.constant);
+        ourShader.setFloat("spotLight.linear", spotLight.linear);
+        ourShader.setFloat("spotLight.quadratic", spotLight.quadratic);
+        ourShader.setFloat("spotLight.cutOff", glm::cos(glm::radians(spotLight.cutOff)));
+        ourShader.setFloat("spotLight.outerCutOff", glm::cos(glm::radians(spotLight.outerCutOff)));
+
+        //TRANSFORMATIONS:
+        glm::mat4 projection = glm::perspective(glm::radians(programState->camera.Zoom),(float) SCR_WIDTH / (float) SCR_HEIGHT, 0.1f, 100.0f);
         glm::mat4 view = programState->camera.GetViewMatrix();
         ourShader.setMat4("projection", projection);
         ourShader.setMat4("view", view);
 
-        // render the loaded model
-
-        //ISLAND:
+        //RENDER ISLAND:
         glm::mat4 model = glm::mat4(1.0f);
-        model = glm::translate(model,programState->islandPosition); // translate it down so it's at the center of the scene
-        model = glm::scale(model, glm::vec3 (programState->islandScale));    // it's a bit too big for our scene, so scale it down
+        renderModel(model, islandObj);
         ourShader.setMat4("model", model);
         islandModel.Draw(ourShader);
 
-        //SPYRO:
-        model = glm::mat4 (1.0f);
-        model = glm::translate(model, programState->spyroPosition);
-        model = glm::scale(model, glm::vec3 (programState->spyroScale));
-        model = glm::rotate(model, glm::radians(programState->spyroRotation), glm::vec3(0.0f, 1.0f, 0.0f));
+        //RENDER SPYRO:
+        renderModel(model, spyroObj);
         ourShader.setMat4("model", model);
         spyroModel.Draw(ourShader);
 
-        //PORTAL:
-        model = glm::mat4 (1.0f);
-        model = glm::translate(model, programState->portalPosition);
-        model = glm::scale(model, glm::vec3(programState->portalScale));
-        model = glm::rotate(model, glm::radians(programState->portalRotation), glm::vec3(0.0f, 1.0f, 0.0f));
+        //RENDER PORTAL:
+        renderModel(model, portalObj);
         ourShader.setMat4("model", model);
         portalModel.Draw(ourShader);
 
-        //KEY:
-        model = glm::mat4 (1.0f);
-        model = glm::translate(model, programState->keyPosition);
-        model = glm::scale(model, glm::vec3(programState->keyScale));
-        model = glm::rotate(model, glm::radians(programState->keyRotation), glm::vec3(1.0f, 0.0f, 0.0f));
+        //RENDER KEY:
+        renderModel(model, keyObj);
         model = glm::rotate(model, (float)glfwGetTime(), glm::vec3 (0.0f, 0.0f, 1.0f));
         ourShader.setMat4("model", model);
         keyModel.Draw(ourShader);
 
-        //CHEST:
-        model = glm::mat4 (1.0f);
-        model = glm::translate(model, programState->chestPosition);
-        model = glm::scale(model, glm::vec3(programState->chestScale));
-        model = glm::rotate(model, glm::radians(programState->chestRotate), glm::vec3(0.0f, 1.0f, 0.0f));
+        //RENDER CHEST:
+        renderModel(model, chestObj);
         ourShader.setMat4("model", model);
         chestModel.Draw(ourShader);
 
-        //Diamond:
-        ourShader.setBool("diamondTransparency", true);
-        for(unsigned int i=0; i<programState->diamondNumber; ++i) {
-            model = glm::mat4(1.0f);
-            model = glm::translate(model, programState->diamondPositions[i]);
-            model = glm::scale(model, glm::vec3(programState->diamondScale));
+        //RENDER DIAMONDS:
+        ourShader.setInt("transparency", 1);
+        for(unsigned int i=0; i<diamondNumber; ++i) {
+            diamondObj.position = diamondPositions[i];
+            renderModel(model, diamondObj);
             model = glm::rotate(model, 2.0f * (float) glfwGetTime(), glm::vec3(0.0f, 1.0f, 0.0f));
             ourShader.setMat4("model", model);
             diamondModel.Draw(ourShader);
         }
-        ourShader.setBool("diamondTransparency", false);
+        ourShader.setInt("transparency", 0);
 
-
-        //PORTAL WATER:
+        //RENDER PORTAL WATER:
         glEnable(GL_CULL_FACE);
         glFrontFace(GL_CW);
         glCullFace(GL_BACK);
 
-        ourShader.setBool("portalTransparency", true);
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, programState->portalWaterPosition);
-        model = glm::scale(model, glm::vec3 (programState->portalWaterScale));
-        model = glm::rotate(model, glm::radians(programState->portalWaterRotation), glm::vec3 (0.0f, 1.0f, 0.0f));
+        ourShader.setInt("transparency", 2);
+        renderModel(model, portalWaterObj);
         ourShader.setMat4("model", model);
+        ourShader.setInt("material.texture_diffuse1", 0);
+        ourShader.setInt("material.texture_specular1", 1);
+        ourShader.setFloat("material.shininess", 32);
 
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, diffuseMap);
@@ -485,7 +512,7 @@ int main() {
         glBindVertexArray(portalVAO);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
-        ourShader.setBool("portalTransparency", false);
+        ourShader.setInt("transparency", 0);
         glBindVertexArray(0);
         glDisable(GL_CULL_FACE);
 
@@ -506,14 +533,9 @@ int main() {
         glDepthMask(GL_TRUE);
         glDepthFunc(GL_LESS);
 
-
         if (programState->ImGuiEnabled)
             DrawImGui(programState);
 
-
-
-        // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
-        // -------------------------------------------------------------------------------
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
@@ -527,41 +549,49 @@ int main() {
     glDeleteBuffers(1, &portalEBO);
     glDeleteShader(ourShader.ID);
     glDeleteShader(cubemapShader.ID);
+    glDeleteTextures(1, &diffuseMap);
+    glDeleteTextures(1, &specularMap);
+    glDeleteTextures(1, &cubemapTexture);
+
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
-    // glfw: terminate, clearing all previously allocated GLFW resources.
-    // ------------------------------------------------------------------
+
     glfwTerminate();
     return 0;
 }
 
-// process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
-// ---------------------------------------------------------------------------------------------------------
 void processInput(GLFWwindow *window) {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
 
-    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_UP))
         programState->camera.ProcessKeyboard(FORWARD, deltaTime);
-    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+    if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_DOWN))
         programState->camera.ProcessKeyboard(BACKWARD, deltaTime);
-    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+    if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_LEFT))
         programState->camera.ProcessKeyboard(LEFT, deltaTime);
-    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+    if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS || glfwGetKey(window, GLFW_KEY_RIGHT))
         programState->camera.ProcessKeyboard(RIGHT, deltaTime);
 }
 
-// glfw: whenever the window size changed (by OS or user resize) this callback function executes
-// ---------------------------------------------------------------------------------------------
+void processLamp(GLFWwindow *window, SpotLight& spotLight){
+    if(glfwGetKey(window, GLFW_KEY_E) == GLFW_RELEASE) {
+        spotLight.ambient = glm::vec3(0.0f);
+        spotLight.diffuse = glm::vec3(0.0f);
+        spotLight.specular = glm::vec3(0.0f);
+    }
+    else if(glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS){
+            spotLight.ambient = programState->sAmbient;
+            spotLight.diffuse = programState->sDiffuse;
+            spotLight.specular = programState->sSpecular;
+    }
+}
+
 void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
-    // make sure the viewport matches the new window dimensions; note that width and
-    // height will be significantly larger than specified on retina displays.
     glViewport(0, 0, width, height);
 }
 
-// glfw: whenever the mouse moves, this callback is called
-// -------------------------------------------------------
 void mouse_callback(GLFWwindow *window, double xpos, double ypos) {
     if (firstMouse) {
         lastX = xpos;
@@ -570,7 +600,7 @@ void mouse_callback(GLFWwindow *window, double xpos, double ypos) {
     }
 
     float xoffset = xpos - lastX;
-    float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
+    float yoffset = lastY - ypos;
 
     lastX = xpos;
     lastY = ypos;
@@ -579,8 +609,6 @@ void mouse_callback(GLFWwindow *window, double xpos, double ypos) {
         programState->camera.ProcessMouseMovement(xoffset, yoffset);
 }
 
-// glfw: whenever the mouse scroll wheel scrolls, this callback is called
-// ----------------------------------------------------------------------
 void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
     programState->camera.ProcessMouseScroll(yoffset);
 }
@@ -590,15 +618,12 @@ void DrawImGui(ProgramState *programState) {
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
 
-
     {
         static float f = 0.0f;
         ImGui::Begin("Hello window");
         ImGui::Text("Hello text");
         ImGui::SliderFloat("Float slider", &f, 0.0, 1.0);
         ImGui::ColorEdit3("Background color", (float *) &programState->clearColor);
-        ImGui::DragFloat3("Backpack position", (float*)&programState->islandPosition);
-        ImGui::DragFloat("Backpack scale", &programState->islandScale, 0.05, 0.1, 4.0);
 
         ImGui::DragFloat("pointLight.constant", &programState->pointLight.constant, 0.05, 0.0, 1.0);
         ImGui::DragFloat("pointLight.linear", &programState->pointLight.linear, 0.05, 0.0, 1.0);
@@ -632,15 +657,28 @@ void key_callback(GLFWwindow *window, int key, int scancode, int action, int mod
     }
 }
 
-unsigned int loadTexture(char const * path)
-{
+void renderModel(glm::mat4& model, Object& object){
+    model = glm::mat4 (1.0f);
+    model = glm::translate(model, object.position);
+    model = glm::scale(model, glm::vec3 (object.scale));
+    if(object.rotationX != 0) {
+        model = glm::rotate(model, glm::radians(object.rotationX), glm::vec3(1.0f, 0.0f, 0.0f));
+    }
+    if(object.rotationY != 0) {
+        model = glm::rotate(model, glm::radians(object.rotationY), glm::vec3(0.0f, 1.0f, 0.0f));
+    }
+    if(object.rotationZ != 0) {
+        model = glm::rotate(model, glm::radians(object.rotationZ), glm::vec3(0.0f, 0.0f, 1.0f));
+    }
+}
+
+unsigned int loadTexture(char const * path){
     unsigned int textureID;
     glGenTextures(1, &textureID);
 
     int width, height, nrComponents;
     unsigned char *data = stbi_load(path, &width, &height, &nrComponents, 0);
-    if (data)
-    {
+    if (data){
         GLenum format;
         if (nrComponents == 1)
             format = GL_RED;
@@ -660,12 +698,10 @@ unsigned int loadTexture(char const * path)
 
         stbi_image_free(data);
     }
-    else
-    {
+    else{
         std::cout << "Texture failed to load at path: " << path << std::endl;
         stbi_image_free(data);
     }
-
     return textureID;
 }
 
@@ -675,7 +711,6 @@ unsigned int loadCubemap(vector<std::string> faces){
     glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
 
     int width, height, nrChannels;
-
     for(unsigned int i=0; i<faces.size(); i++){
 
         unsigned char *data = stbi_load(faces[i].c_str(), &width, &height, &nrChannels, 0);
@@ -687,7 +722,6 @@ unsigned int loadCubemap(vector<std::string> faces){
             std::cout << "Cubemap failed to load at path: " << faces[i] << '\n';
             stbi_image_free(data);
         }
-
     }
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
