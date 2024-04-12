@@ -9,8 +9,12 @@ KONTROLE:
 UKLJUCENO GRADIVO:
 
 	- obavezne lekcije -> 1-7 nedelja, blending, face culling, advanced lighting
+
+ 		*blending - implementiran nad dijamantima i portalu
  
-		*face culling je implementiran na portalu
+		*face culling - implementiran na portalu
+
+  		*advanced lighting - implementiran na pointLight-
   
 	- model
  
